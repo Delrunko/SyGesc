@@ -1,0 +1,37 @@
+{
+  "id": "./",
+  "name": "SyGesc — Application de Gestion Scolaire",
+  "short_name": "SyGesc",
+  "description": "Gérer les classes, les élèves, les présences et les résultats scolaires.",
+  "lang": "fr",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "background_color": "#0b1226",
+  "theme_color": "#0b1226",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ouvrir SyGesc",
+      "short_name": "Ouvrir",
+      "url": "./",
+      "icons": [{ "src": "/icon-192.png", "sizes": "192x192", "type": "image/png" }]
+    }
+  ]
+}
