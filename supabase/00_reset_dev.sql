@@ -10,7 +10,7 @@ drop policy if exists logos_maj on storage.objects;
 drop policy if exists logos_suppression on storage.objects;
 
 drop table if exists
-  public.usage_chatbot, public.journal_actions, public.modeles_fiche,
+  public.notifications, public.usage_chatbot, public.journal_actions, public.modeles_fiche,
   public.notes, public.evaluations, public.presences, public.seances,
   public.eleves, public.matieres, public.periodes, public.classes,
   public.campus, public.etablissements, public.admins, public.enseignants,
@@ -20,6 +20,8 @@ cascade;
 drop type if exists public.statut_presence, public.statut_compte;
 
 drop function if exists public.creer_profil_enseignant();
+drop function if exists public.notifier_nouvelle_inscription();
+drop function if exists public.notifier_validation_enseignant();
 drop function if exists public.verifier_presence();
 drop function if exists public.verifier_note();
 drop function if exists public.changer_statut_enseignant(uuid, public.statut_compte);

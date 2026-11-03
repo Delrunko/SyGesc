@@ -65,7 +65,7 @@ Deno.serve(async (request) => {
       return jsonResponse({ error: "Requête invalide." }, 400);
     }
 
-    if (body.action === "admin-reset") {
+    if (body.action === "teacher-details" || body.action === "admin-reset") {
       const { data: admin, error: adminError } = await adminClient
         .from("admins")
         .select("id")
@@ -85,7 +85,7 @@ Deno.serve(async (request) => {
 
       const { data: teacher, error: teacherError } = await adminClient
         .from("enseignants")
-        .select("id")
+        .select("id, nom, telephone, statut, role_acces, created_at")
         .eq("id", teacherId)
         .maybeSingle();
       if (teacherError) {
@@ -103,14 +103,23 @@ Deno.serve(async (request) => {
         console.error("Vérification du compte cible impossible.");
         return jsonResponse({ error: "Impossible de vérifier le compte demandé." }, 500);
       }
-      if (targetAdmin) {
-        return jsonResponse({ error: "La réinitialisation d’un compte administrateur doit être faite séparément." }, 403);
-      }
 
       const { data: target, error: targetError } = await adminClient.auth.admin.getUserById(teacherId);
       if (targetError || !target.user) {
         console.error("Compte d’authentification enseignant introuvable.");
         return jsonResponse({ error: "Impossible de retrouver ce compte d’authentification." }, 404);
+      }
+
+      if (body.action === "teacher-details") {
+        return jsonResponse({
+          ...teacher,
+          email: target.user.email || null,
+          emailConfirmed: Boolean(target.user.email_confirmed_at),
+          isAdmin: Boolean(targetAdmin),
+        });
+      }
+      if (targetAdmin) {
+        return jsonResponse({ error: "La réinitialisation d’un compte administrateur doit être faite séparément." }, 403);
       }
 
       const password = temporaryPassword();

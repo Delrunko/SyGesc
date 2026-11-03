@@ -4,6 +4,7 @@ import ThemeToggle from './components/ThemeToggle.jsx'
 import Auth from './components/Auth.jsx'
 import Dashboard from './components/Dashboard.jsx'
 import AdminChatbot from './components/AdminChatbot.jsx'
+import NotificationCenter from './components/NotificationCenter.jsx'
 import { messageErreurFonction } from './utils/supabaseErrors.js'
 
 const LIBELLES = {
@@ -16,11 +17,12 @@ const LIBELLES_ROLE = {
   responsable: 'Secrétaire / Responsable · bulletins',
 }
 
-function Barre({ connecte }) {
+function Barre({ connecte, userId }) {
   return (
     <header className="topbar">
       <strong className="brand">Gestion scolaire</strong>
       <div className="row" style={{ marginTop: 0 }}>
+        {connecte && userId && <NotificationCenter userId={userId} />}
         {connecte && <button type="button" className="btn" onClick={() => supabase.auth.signOut()}>Déconnexion</button>}
         <ThemeToggle />
       </div>
@@ -35,6 +37,9 @@ function ListeComptes({ onChange }) {
   const [filtre, setFiltre] = useState('tous')
   const [resetEnCours, setResetEnCours] = useState(null)
   const [motDePasseProvisoire, setMotDePasseProvisoire] = useState(null)
+  const [compteSelectionne, setCompteSelectionne] = useState(null)
+  const [chargementDetails, setChargementDetails] = useState(false)
+  const [erreurDetails, setErreurDetails] = useState('')
 
   async function charger() {
     const { data, error } = await supabase
@@ -46,6 +51,34 @@ function ListeComptes({ onChange }) {
   }
 
   useEffect(() => { charger() }, [])
+
+  useEffect(() => {
+    if (!compteSelectionne) return undefined
+    function fermerAvecEchap(event) {
+      if (event.key === 'Escape') setCompteSelectionne(null)
+    }
+    window.addEventListener('keydown', fermerAvecEchap)
+    return () => window.removeEventListener('keydown', fermerAvecEchap)
+  }, [compteSelectionne])
+
+  async function ouvrirFiche(compte) {
+    setCompteSelectionne({ ...compte, email: null })
+    setErreurDetails('')
+    setChargementDetails(true)
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-password-reset', {
+        body: { action: 'teacher-details', teacherId: compte.id },
+      })
+      if (error) {
+        throw new Error(await messageErreurFonction(error, 'Impossible de charger les détails du compte.'))
+      }
+      setCompteSelectionne({ ...compte, ...data })
+    } catch (error) {
+      setErreurDetails(error?.message || 'Impossible de charger les détails du compte.')
+    } finally {
+      setChargementDetails(false)
+    }
+  }
 
   async function changer(id, statut) {
     const { error } = await supabase.rpc('changer_statut_enseignant', { p_id: id, p_statut: statut })
@@ -99,6 +132,70 @@ function ListeComptes({ onChange }) {
 
   return (
     <>
+      {compteSelectionne && (
+        <div className="admin-modal-overlay" onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setCompteSelectionne(null)
+        }}>
+          <section className="card admin-account-modal" role="dialog" aria-modal="true"
+            aria-labelledby="admin-account-title" aria-describedby="admin-account-description">
+            <header className="admin-account-modal-heading">
+              <div>
+                <p className="admin-eyebrow">Fiche du compte enseignant</p>
+                <h2 id="admin-account-title">{compteSelectionne.nom}</h2>
+              </div>
+              <button type="button" className="btn admin-modal-close" autoFocus
+                aria-label="Fermer la fiche enseignant"
+                onClick={() => setCompteSelectionne(null)}>×</button>
+            </header>
+            <p id="admin-account-description" className="muted">
+              Coordonnées et statut du compte sélectionné.
+            </p>
+            {chargementDetails ? (
+              <p className="muted" role="status">Chargement de l’adresse email…</p>
+            ) : erreurDetails ? (
+              <p className="assistant-notice assistant-notice-erreur" role="alert">{erreurDetails}</p>
+            ) : (
+              <dl className="admin-account-details">
+                <div>
+                  <dt>Nom complet</dt>
+                  <dd>{compteSelectionne.nom}</dd>
+                </div>
+                <div>
+                  <dt>Adresse email</dt>
+                  <dd>{compteSelectionne.email || 'Non renseignée'}</dd>
+                </div>
+                <div>
+                  <dt>Téléphone</dt>
+                  <dd>{compteSelectionne.telephone || 'Non renseigné'}</dd>
+                </div>
+                <div>
+                  <dt>Statut</dt>
+                  <dd>{LIBELLES[compteSelectionne.statut]?.[0] || compteSelectionne.statut}</dd>
+                </div>
+                <div>
+                  <dt>Rôle d’accès</dt>
+                  <dd>{LIBELLES_ROLE[compteSelectionne.role_acces] || LIBELLES_ROLE.enseignant}</dd>
+                </div>
+                <div>
+                  <dt>Inscription</dt>
+                  <dd>{new Date(compteSelectionne.created_at).toLocaleDateString('fr-FR')}</dd>
+                </div>
+                {compteSelectionne.email && (
+                  <div>
+                    <dt>Email confirmé</dt>
+                    <dd>{compteSelectionne.emailConfirmed ? 'Oui' : 'Non'}</dd>
+                  </div>
+                )}
+              </dl>
+            )}
+            <footer className="admin-account-modal-actions">
+              <button type="button" className="btn" onClick={() => setCompteSelectionne(null)}>
+                Fermer
+              </button>
+            </footer>
+          </section>
+        </div>
+      )}
       <header className="admin-section-heading">
         <div>
           <p className="admin-eyebrow">Gestion des accès</p>
@@ -157,7 +254,11 @@ function ListeComptes({ onChange }) {
                     return (
                       <tr key={compte.id}>
                         <td>
-                          <strong>{compte.nom}</strong>
+                          <button type="button" className="admin-account-name"
+                            onClick={() => ouvrirFiche(compte)}
+                            aria-label={`Afficher la fiche de ${compte.nom}`}>
+                            {compte.nom}
+                          </button>
                           {compte.telephone && <small>{compte.telephone}</small>}
                         </td>
                         <td>{new Date(compte.created_at).toLocaleDateString('fr-FR')}</td>
@@ -201,7 +302,7 @@ function ListeComptes({ onChange }) {
   )
 }
 
-function Admin() {
+function Admin({ userId }) {
   const [onglet, setOnglet] = useState('dashboard')
   const [resume, setResume] = useState(null)
   const [chargement, setChargement] = useState(true)
@@ -245,7 +346,7 @@ function Admin() {
 
   return (
     <>
-      <Barre connecte />
+      <Barre connecte userId={userId} />
       <main className="container admin-container">
         <header className="admin-hero">
           <div>
@@ -364,12 +465,27 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (!session) { setProfil(null); setEstAdmin(false); return }
+    if (!session) { setProfil(null); setEstAdmin(false); return undefined }
     const uid = session.user.id
     supabase.from('admins').select('id').eq('id', uid).maybeSingle()
       .then(({ data }) => setEstAdmin(!!data))
     supabase.from('enseignants').select('nom, statut, role_acces').eq('id', uid).maybeSingle()
       .then(({ data }) => setProfil(data))
+    const channel = supabase.channel(`statut-enseignant-${uid}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'enseignants',
+        filter: `id=eq.${uid}`,
+      }, ({ new: enseignant }) => {
+        setProfil({
+          nom: enseignant.nom,
+          statut: enseignant.statut,
+          role_acces: enseignant.role_acces,
+        })
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
   }, [session])
 
   if (chargement) return <p className="muted" style={{ padding: '1rem' }}>Chargement...</p>
@@ -384,7 +500,7 @@ export default function App() {
   }
   if (!session) return <Auth />
 
-  if (estAdmin) return <Admin />
+  if (estAdmin) return <Admin userId={session.user.id} />
   if (session.user.app_metadata?.must_change_password) {
     return (
       <Auth
@@ -402,7 +518,7 @@ export default function App() {
   if (profil.statut === 'en_attente') {
     return (
       <>
-        <Barre connecte />
+        <Barre connecte userId={session.user.id} />
         <main className="container">
           <section className="card">
             <h1>Compte en attente</h1>
@@ -416,7 +532,7 @@ export default function App() {
   if (profil.statut === 'refuse') {
     return (
       <>
-        <Barre connecte />
+        <Barre connecte userId={session.user.id} />
         <main className="container">
           <section className="card">
             <h1>Compte refusé</h1>

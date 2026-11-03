@@ -5,6 +5,7 @@ import Accueil from './Accueil.jsx'
 import EtablissementPage from './EtablissementPage.jsx'
 import Classe from './Classe.jsx'
 import AssistantFlottant from './AssistantFlottant.jsx'
+import NotificationCenter from './NotificationCenter.jsx'
 
 function lireRecents(cle) {
   try {
@@ -119,6 +120,7 @@ export default function Dashboard({ nom, userId, roleAcces = 'enseignant' }) {
         {contenu}
       </main>
       <AssistantFlottant classes={classesAssistant} classeCourante={classeCourante?.id} />
+      <NotificationCenter userId={userId} variant="dashboard" />
     </div>
   )
 }

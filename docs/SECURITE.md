@@ -32,6 +32,7 @@ Une faille à un niveau ne doit jamais suffire.
 - Désactiver les connexions anonymes.
 - Conserver les limites de débit ; n'autoriser comme URL de redirection que ton domaine.
 - **Compte admin** : authentification à deux facteurs (MFA) ; création uniquement par SQL (`03_creer_admin.sql`).
+- Les notifications de compte sont privées par utilisateur grâce à la RLS. Seuls les déclencheurs SQL peuvent les créer; un utilisateur ne peut lire et marquer comme lues que ses propres notifications.
 - La réinitialisation d’un mot de passe enseignant passe par la fonction serveur `admin-password-reset` :
   elle valide le JWT, vérifie l’appartenance à `admins`, génère un secret provisoire et exige son remplacement.
   La clé `service_role` ne quitte jamais les secrets de la fonction.

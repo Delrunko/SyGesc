@@ -22,3 +22,8 @@ La fonction utilise les variables serveur fournies par Supabase, dont `SUPABASE_
 4. À la connexion, l’application impose le choix d’un nouveau mot de passe d’au moins 10 caractères.
 
 La fonction refuse les appels non authentifiés, les comptes ne figurant pas dans `enseignants` et les comptes administrateurs. Les liens de récupération par email précédemment envoyés restent pris en charge.
+La même fonction fournit à l’administration la fiche du compte enseignant, y compris son email, uniquement après vérification de son rôle. Après toute modification de cette fonction, la redéployer avec la même commande.
+
+## Dépannage
+
+Si l’application indique qu’elle ne peut pas joindre ou trouver la fonction, vérifier dans Supabase que `admin-password-reset` est déployée sur le projet dont l’URL est configurée dans `VITE_SUPABASE_URL`. Le déploiement Cloudflare de l’application ne déploie pas les fonctions Supabase. Une erreur réseau ou CORS peut également signaler que le navigateur ne peut pas joindre ce projet.
