@@ -32,10 +32,13 @@ Une faille à un niveau ne doit jamais suffire.
 - Désactiver les connexions anonymes.
 - Conserver les limites de débit ; n'autoriser comme URL de redirection que ton domaine.
 - **Compte admin** : authentification à deux facteurs (MFA) ; création uniquement par SQL (`03_creer_admin.sql`).
+- La réinitialisation d’un mot de passe enseignant passe par la fonction serveur `admin-password-reset` :
+  elle valide le JWT, vérifie l’appartenance à `admins`, génère un secret provisoire et exige son remplacement.
+  La clé `service_role` ne quitte jamais les secrets de la fonction.
 
 ## 3. Clés et secrets
 - Clé `anon` : publique par conception (protégée par la RLS). Clé `service_role` : **jamais** dans le front,
-  jamais dans Git ; uniquement dans les secrets de la fonction serveur du chatbot.
+  jamais dans Git ; uniquement dans les secrets des fonctions serveur du chatbot et de récupération de compte.
 - `.env` exclu de Git (déjà dans `.gitignore`). Régénérer les clés en cas de fuite.
 
 ## 4. Chatbot

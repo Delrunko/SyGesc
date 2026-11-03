@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "wrangler deploy"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.45.0",
@@ -22,6 +23,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.3",
-    "vite": "^5.4.10"
+    "vite": "^5.4.10",
+    "wrangler": "^4.156.2"
   }
 }

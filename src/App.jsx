@@ -4,6 +4,7 @@ import ThemeToggle from './components/ThemeToggle.jsx'
 import Auth from './components/Auth.jsx'
 import Dashboard from './components/Dashboard.jsx'
 import AdminChatbot from './components/AdminChatbot.jsx'
+import { messageErreurFonction } from './utils/supabaseErrors.js'
 
 const LIBELLES = {
   en_attente: ['En attente', 'badge badge-excuse'],
@@ -32,6 +33,8 @@ function ListeComptes({ onChange }) {
   const [erreur, setErreur] = useState('')
   const [recherche, setRecherche] = useState('')
   const [filtre, setFiltre] = useState('tous')
+  const [resetEnCours, setResetEnCours] = useState(null)
+  const [motDePasseProvisoire, setMotDePasseProvisoire] = useState(null)
 
   async function charger() {
     const { data, error } = await supabase
@@ -64,6 +67,29 @@ function ListeComptes({ onChange }) {
     }
   }
 
+  async function reinitialiserMotDePasse(compte) {
+    if (!window.confirm(`Générer un mot de passe provisoire pour ${compte.nom} ? Son mot de passe actuel cessera de fonctionner.`)) return
+    setErreur('')
+    setMotDePasseProvisoire(null)
+    setResetEnCours(compte.id)
+    try {
+      const { data, error } = await supabase.functions.invoke('admin-password-reset', {
+        body: { action: 'admin-reset', teacherId: compte.id },
+      })
+      if (error) {
+        throw new Error(await messageErreurFonction(error, 'Impossible de réinitialiser ce mot de passe.'))
+      }
+      if (!data?.temporaryPassword) {
+        throw new Error('Le serveur n’a pas renvoyé le mot de passe provisoire.')
+      }
+      setMotDePasseProvisoire({ nom: compte.nom, value: data.temporaryPassword })
+    } catch (error) {
+      setErreur(error?.message || 'Impossible de réinitialiser ce mot de passe.')
+    } finally {
+      setResetEnCours(null)
+    }
+  }
+
   const visibles = comptes.filter((compte) => {
     const correspondAuFiltre = filtre === 'tous' || compte.statut === filtre
     const correspondALaRecherche = `${compte.nom} ${compte.telephone || ''}`
@@ -83,6 +109,17 @@ function ListeComptes({ onChange }) {
       </header>
       {erreur && <p className="assistant-notice assistant-notice-erreur" role="alert">{erreur}</p>}
       <section className="card admin-card">
+        {motDePasseProvisoire && (
+          <div className="admin-reset-password" role="status">
+            <div>
+              <strong>Mot de passe provisoire pour {motDePasseProvisoire.nom}</strong>
+              <p className="muted">Transmets-le directement à l’enseignant par un canal sûr. Il ne sera plus affiché après fermeture.</p>
+              <code>{motDePasseProvisoire.value}</code>
+            </div>
+            <button type="button" className="btn"
+              onClick={() => setMotDePasseProvisoire(null)}>Fermer</button>
+          </div>
+        )}
         <div className="admin-filtres">
           <input
             className="input"
@@ -137,6 +174,11 @@ function ListeComptes({ onChange }) {
                         </td>
                         <td>
                           <div className="admin-actions">
+                            <button type="button" className="btn"
+                              disabled={Boolean(resetEnCours) || Boolean(motDePasseProvisoire)}
+                              onClick={() => reinitialiserMotDePasse(compte)}>
+                              {resetEnCours === compte.id ? 'Génération…' : 'Réinitialiser le mot de passe'}
+                            </button>
                             {compte.statut !== 'valide' && (
                               <button type="button" className="btn btn-primary"
                                 onClick={() => changer(compte.id, 'valide')}>Valider</button>
@@ -343,6 +385,17 @@ export default function App() {
   if (!session) return <Auth />
 
   if (estAdmin) return <Admin />
+  if (session.user.app_metadata?.must_change_password) {
+    return (
+      <Auth
+        temporaryPasswordMode
+        onTemporaryPasswordChanged={async () => {
+          const { error } = await supabase.auth.refreshSession()
+          if (error) throw error
+        }}
+      />
+    )
+  }
 
   if (!profil) return <p className="muted" style={{ padding: '1rem' }}>Chargement...</p>
 

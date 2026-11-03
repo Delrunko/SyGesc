@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../supabaseClient.js'
+import { messageErreurFonction } from '../utils/supabaseErrors.js'
 import ThemeToggle from './ThemeToggle.jsx'
 import {
   ConditionsUtilisation,
@@ -8,7 +9,13 @@ import {
   VERSION_DOCUMENTS,
 } from './Legal.jsx'
 
-export default function Auth({ recoveryMode = false, recoveryError = '', onPasswordRecovered }) {
+export default function Auth({
+  recoveryMode = false,
+  recoveryError = '',
+  temporaryPasswordMode = false,
+  onPasswordRecovered,
+  onTemporaryPasswordChanged,
+}) {
   const [mode, setMode] = useState('connexion')
   const [documentLegal, setDocumentLegal] = useState(null)
   const [nom, setNom] = useState('')
@@ -27,6 +34,42 @@ export default function Auth({ recoveryMode = false, recoveryError = '', onPassw
     e.preventDefault()
     setMessage('')
     setMessageIsInfo(false)
+    if (temporaryPasswordMode) {
+      if (password.length < 10) {
+        setMessage('Le nouveau mot de passe doit contenir au moins 10 caractères.')
+        return
+      }
+      if (password !== confirmationPassword) {
+        setMessage('Les deux mots de passe ne correspondent pas.')
+        return
+      }
+      setLoading(true)
+      try {
+        const { error } = await supabase.functions.invoke('admin-password-reset', {
+          body: { action: 'change-password', password },
+        })
+        if (error) {
+          setMessage(await messageErreurFonction(error, 'Impossible de modifier le mot de passe.'))
+        }
+        else {
+          setPassword('')
+          setConfirmationPassword('')
+          try {
+            await onTemporaryPasswordChanged()
+          } catch {
+            setMessage('Mot de passe modifié. Si tu ne continues pas automatiquement, retourne à la connexion et reconnecte-toi avec ton nouveau mot de passe.')
+            setMessageIsInfo(true)
+          }
+          setRecuperationTerminee(true)
+        }
+      } catch (error) {
+        setMessage(error?.message || 'Impossible de modifier le mot de passe. Réessaie.')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
+
     if (recoveryMode) {
       if (password.length < 10) {
         setMessage('Le nouveau mot de passe doit contenir au moins 10 caractères.')
@@ -90,27 +133,6 @@ export default function Auth({ recoveryMode = false, recoveryError = '', onPassw
     }
   }
 
-  async function envoyerLienRecuperation(e) {
-    e.preventDefault()
-    setMessage('')
-    setMessageIsInfo(false)
-    setLoading(true)
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/`,
-      })
-      if (error) setMessage(error.message)
-      else {
-        setMessage('Si un compte correspond à cette adresse, un lien de réinitialisation vient de lui être envoyé. Vérifie aussi les courriers indésirables.')
-        setMessageIsInfo(true)
-      }
-    } catch (error) {
-      setMessage(error?.message || 'Impossible d’envoyer le lien. Réessaie.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
   function changerMode() {
     setMessage('')
     setDocumentLegal(null)
@@ -161,7 +183,11 @@ export default function Auth({ recoveryMode = false, recoveryError = '', onPassw
         <div className="auth-theme"><ThemeToggle /></div>
         <section className="card auth-carte">
           <h2>
-            {recoveryMode
+            {temporaryPasswordMode
+              ? recuperationTerminee
+                ? 'Mot de passe sécurisé'
+                : 'Remplacer le mot de passe provisoire'
+              : recoveryMode
               ? recuperationTerminee
                 ? 'Mot de passe modifié'
                 : recoveryError
@@ -173,7 +199,40 @@ export default function Auth({ recoveryMode = false, recoveryError = '', onPassw
                   ? 'Récupérer mon compte'
                   : 'Connexion'}
           </h2>
-          {recoveryMode && recuperationTerminee ? (
+          {temporaryPasswordMode && recuperationTerminee ? (
+            <div className="auth-recovery-complete">
+              <p className="auth-recovery-success" role="status">
+                Ton nouveau mot de passe est enregistré. Tu peux continuer à utiliser ton compte.
+              </p>
+              <button type="button" className="btn" onClick={() => supabase.auth.signOut()}>
+                Retour à la connexion
+              </button>
+            </div>
+          ) : temporaryPasswordMode ? (
+            <>
+              <p className="muted">
+                Pour protéger ton compte, choisis maintenant un mot de passe personnel d’au moins 10 caractères.
+              </p>
+              <form onSubmit={submit} className="form">
+                <label className="auth-password-field">
+                  Nouveau mot de passe
+                  <input className="input" type="password" autoComplete="new-password"
+                    value={password} onChange={(e) => setPassword(e.target.value)}
+                    required minLength={10} />
+                </label>
+                <label className="auth-password-field">
+                  Confirmer le mot de passe
+                  <input className="input" type="password" autoComplete="new-password"
+                    value={confirmationPassword}
+                    onChange={(e) => setConfirmationPassword(e.target.value)}
+                    required minLength={10} />
+                </label>
+                <button type="submit" className="btn btn-primary" disabled={loading}>
+                  {loading ? 'Modification...' : 'Enregistrer mon mot de passe'}
+                </button>
+              </form>
+            </>
+          ) : recoveryMode && recuperationTerminee ? (
             <div className="auth-recovery-complete">
               <p className="auth-recovery-success" role="status">
                 Ton mot de passe a été modifié. Tu peux maintenant continuer vers ton compte.
@@ -215,18 +274,11 @@ export default function Auth({ recoveryMode = false, recoveryError = '', onPassw
           ) : mode === 'mot-de-passe-oublie' ? (
             <>
               <p className="muted">
-                Indique l’adresse email de ton compte. Si elle est reconnue, nous t’enverrons un lien sécurisé.
+                L’administrateur ne peut pas retrouver ton ancien mot de passe, mais il peut t’en attribuer un provisoire.
               </p>
-              <form onSubmit={envoyerLienRecuperation} className="form">
-                <label className="auth-password-field">
-                  Adresse email
-                  <input className="input" type="email" autoComplete="email" placeholder="Email"
-                    value={email} onChange={(e) => setEmail(e.target.value)} required />
-                </label>
-                <button type="submit" className="btn btn-primary" disabled={loading}>
-                  {loading ? 'Envoi...' : 'Envoyer le lien de récupération'}
-                </button>
-              </form>
+              <p className="auth-message auth-message-info" role="status">
+                Contacte l’administrateur en lui indiquant ton nom complet. Après vérification, il pourra générer un mot de passe temporaire. Tu devras le remplacer dès ta prochaine connexion.
+              </p>
               <p>
                 <button type="button" className="link-btn"
                   onClick={() => { setMessage(''); setMode('connexion') }}>
