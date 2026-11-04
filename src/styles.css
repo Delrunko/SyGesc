@@ -621,10 +621,20 @@ button.badge { border: none; cursor: pointer; font: inherit; font-weight: 600; f
 .legal-document section h2 { margin: 0 0 0.45rem; font-size: 1.12rem; }
 .legal-document section p { margin: 0.45rem 0; }
 .legal-document section ul { display: grid; gap: 0.4rem; margin: 0.5rem 0; padding-left: 1.25rem; }
-.pwa-notice { position: fixed; z-index: 55; bottom: 1rem; left: 1rem; display: grid; gap: 0.35rem; width: min(390px, calc(100vw - 2rem)); padding: 0.85rem 1rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22); }
-.pwa-notice p { margin: 0 0 0.5rem; font-size: 0.88rem; }
+.pwa-notice { position: fixed; z-index: 55; bottom: 1rem; left: 1rem; display: grid; gap: 0.35rem; width: min(320px, calc(100vw - 2rem)); padding: 0.7rem 0.8rem; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22); }
+.pwa-notice p { margin: 0 0 0.4rem; font-size: 0.84rem; }
 .pwa-notice .btn { font-size: 0.84rem; }
+.pwa-install-invitation { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.5rem; }
+.pwa-install-invitation .btn { padding: 0.42rem 0.75rem; }
+.pwa-notice-close { display: grid; width: 30px; height: 30px; flex: none; place-items: center; border: 0; border-radius: 8px; background: transparent; color: var(--text-muted); cursor: pointer; font: inherit; font-size: 1.35rem; line-height: 1; }
+.pwa-notice-close:hover { background: var(--surface-2); color: var(--text); }
 .pwa-error { color: var(--danger); }
+.sb-install-action { margin-top: 0.25rem; }
+.sb-install-action > span:first-child { display: grid; width: 28px; height: 28px; flex: none; place-items: center; border-radius: 8px; background: rgba(255, 255, 255, 0.1); color: var(--star); font-size: 1.2rem; }
+.sb-install-help { margin: 0.25rem 0.5rem 0.65rem; padding: 0.65rem 0.7rem; border: 1px solid rgba(255, 255, 255, 0.14); border-radius: 9px; color: var(--on-ink-muted); font-size: 0.8rem; line-height: 1.45; }
+.pwa-install-action-topbar { display: grid; gap: 0.25rem; }
+.pwa-install-action-topbar .btn { display: inline-flex; align-items: center; gap: 0.4rem; }
+.pwa-install-help-topbar { max-width: 280px; margin: 0; color: var(--text-muted); font-size: 0.75rem; line-height: 1.35; }
 
 /* ===== Notifications de compte ===== */
 .notification-center { position: relative; z-index: 65; }

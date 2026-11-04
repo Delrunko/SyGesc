@@ -5,6 +5,7 @@ import Auth from './components/Auth.jsx'
 import Dashboard from './components/Dashboard.jsx'
 import AdminChatbot from './components/AdminChatbot.jsx'
 import NotificationCenter from './components/NotificationCenter.jsx'
+import PwaInstallAction from './components/PwaInstallAction.jsx'
 import { messageErreurFonction } from './utils/supabaseErrors.js'
 
 const LIBELLES = {
@@ -23,6 +24,7 @@ function Barre({ connecte, userId }) {
       <strong className="brand">Gestion scolaire</strong>
       <div className="row" style={{ marginTop: 0 }}>
         {connecte && userId && <NotificationCenter userId={userId} />}
+        {connecte && <PwaInstallAction />}
         {connecte && <button type="button" className="btn" onClick={() => supabase.auth.signOut()}>Déconnexion</button>}
         <ThemeToggle />
       </div>

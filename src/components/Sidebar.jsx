@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '../supabaseClient.js'
+import PwaInstallAction from './PwaInstallAction.jsx'
 import ThemeToggle from './ThemeToggle.jsx'
 
 function Initiale({ nom }) {
@@ -29,6 +30,7 @@ export default function Sidebar({ arbre, logos, vue, etabActif, ouvert, nom, onA
       <nav className="sb-nav">
         <button type="button" className={vue.type === 'accueil' ? 'sb-lien actif' : 'sb-lien'}
           onClick={() => onAller({ type: 'accueil' })}>Accueil</button>
+        <PwaInstallAction sidebar />
 
         <p className="sb-titre">Mes établissements</p>
         {arbre.length === 0 && <p className="sb-vide">Aucun établissement. Crée le premier depuis l’accueil.</p>}
