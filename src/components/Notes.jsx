@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient.js'
 
+const TAILLE_IMPORT_MAX = 5 * 1024 * 1024
+const LIGNES_IMPORT_MAX = 500
+
 function aujourdhui() {
   const d = new Date()
   const m = String(d.getMonth() + 1).padStart(2, '0')
@@ -9,6 +12,16 @@ function aujourdhui() {
 }
 
 const num = (s) => Number(String(s).trim().replace(',', '.'))
+const normaliserEntete = (value) => String(value ?? '').normalize('NFD')
+  .replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('fr')
+  .replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '')
+const normaliserMatricule = (value) => String(value ?? '').trim().toLocaleUpperCase('fr')
+
+async function lireExcel(file) {
+  const { readSheet } = await import('read-excel-file/browser')
+  const rows = await readSheet(file)
+  return rows.map((row) => row.map((cell) => String(cell ?? '').trim()))
+}
 
 export default function Notes({ classe }) {
   const [matieres, setMatieres] = useState([])
@@ -25,6 +38,12 @@ export default function Notes({ classe }) {
   const [existantes, setExistantes] = useState({})
   const [erreur, setErreur] = useState('')
   const [info, setInfo] = useState('')
+  const [lignesImport, setLignesImport] = useState([])
+  const [colonneMatriculeImport, setColonneMatriculeImport] = useState(0)
+  const [colonneNoteImport, setColonneNoteImport] = useState(1)
+  const [enteteImport, setEnteteImport] = useState(true)
+  const [lectureImport, setLectureImport] = useState(false)
+  const [importEnCours, setImportEnCours] = useState(false)
 
   useEffect(() => {
     supabase.from('matieres').select('id, nom').eq('classe_id', classe.id).order('nom')
@@ -78,6 +97,7 @@ export default function Notes({ classe }) {
 
   async function ouvrirEval(ev) {
     setErreur(''); setInfo('')
+    setLignesImport([])
     const [r1, r2] = await Promise.all([
       supabase.from('eleves').select('id, matricule, nom').eq('classe_id', classe.id).order('nom'),
       supabase.from('notes').select('eleve_id, valeur').eq('evaluation_id', ev.id),
@@ -118,6 +138,119 @@ export default function Notes({ classe }) {
     setExistantes(Object.fromEntries(lignes.map((l) => [l.eleve_id, true])))
     setErreur('')
     setInfo('Notes enregistrées.')
+  }
+
+  async function choisirFichierNotes(event) {
+    const file = event.target.files?.[0]
+    event.target.value = ''
+    if (!file) return
+    setErreur('')
+    setInfo('')
+    setLignesImport([])
+    if (!file.name.toLocaleLowerCase('fr').endsWith('.xlsx')) {
+      setErreur('Choisis un fichier Excel .xlsx contenant une colonne matricule et une colonne note.')
+      return
+    }
+    if (file.size > TAILLE_IMPORT_MAX) {
+      setErreur('Le fichier dépasse la limite de 5 Mo.')
+      return
+    }
+    setLectureImport(true)
+    try {
+      const rows = await lireExcel(file)
+      const propres = rows.filter((row) => row.some((cell) => cell !== ''))
+      if (propres.length === 0) {
+        setErreur('Le fichier Excel ne contient aucune ligne.')
+        return
+      }
+      if (propres.length > LIGNES_IMPORT_MAX + 1) {
+        setErreur(`Le fichier dépasse la limite de ${LIGNES_IMPORT_MAX} élèves.`)
+        return
+      }
+      const entetes = propres[0].map(normaliserEntete)
+      const indexMatricule = entetes.findIndex((value) =>
+        ['matricule', 'numero_matricule', 'code_eleve', 'id_eleve', 'mat'].includes(value))
+      const indexNote = entetes.findIndex((value) =>
+        ['note', 'valeur', 'score', 'resultat'].includes(value) || value.startsWith('note_'))
+      setColonneMatriculeImport(indexMatricule >= 0 ? indexMatricule : 0)
+      setColonneNoteImport(indexNote >= 0 ? indexNote : Math.min(1, Math.max(0, propres[0].length - 1)))
+      setEnteteImport(true)
+      setLignesImport(propres)
+    } catch (cause) {
+      setErreur(`Lecture impossible : ${cause?.message || 'fichier invalide.'}`)
+    } finally {
+      setLectureImport(false)
+    }
+  }
+
+  const colonnesImport = Math.max(2, ...lignesImport.slice(0, 20).map((row) => row.length))
+  const donneesImport = lignesImport.slice(enteteImport ? 1 : 0).slice(0, LIGNES_IMPORT_MAX)
+  const elevesParMatricule = new Map(eleves.map((eleve) => [
+    normaliserMatricule(eleve.matricule),
+    eleve,
+  ]))
+  const compteursImport = new Map()
+  donneesImport.forEach((row) => {
+    const matricule = normaliserMatricule(row[colonneMatriculeImport])
+    if (matricule) compteursImport.set(matricule, (compteursImport.get(matricule) || 0) + 1)
+  })
+  const lignesPreparees = donneesImport.map((row, index) => {
+    const matricule = normaliserMatricule(row[colonneMatriculeImport])
+    const brutNote = String(row[colonneNoteImport] ?? '').trim()
+    const eleve = elevesParMatricule.get(matricule)
+    const note = brutNote ? num(brutNote) : Number.NaN
+    let raison = ''
+    if (!matricule) raison = 'Matricule manquant'
+    else if ((compteursImport.get(matricule) || 0) > 1) raison = 'Matricule répété dans le fichier'
+    else if (!eleve) raison = 'Élève absent de cette classe'
+    else if (!brutNote || !Number.isFinite(note)) raison = 'Note non numérique'
+    else if (note < 0 || note > ouverte.note_max) raison = `Note hors barème (0 à ${ouverte.note_max})`
+    return {
+      ligne: index + (enteteImport ? 2 : 1),
+      matricule,
+      note,
+      eleve,
+      raison,
+      vide: !matricule && !brutNote,
+    }
+  }).filter((row) => !row.vide)
+  const notesImportables = lignesPreparees.filter((row) => !row.raison)
+
+  async function importerNotes() {
+    if (notesImportables.length === 0) {
+      setErreur('Aucune ligne importable. Vérifie le mappage des colonnes et les matricules.')
+      return
+    }
+    setImportEnCours(true)
+    setErreur('')
+    setInfo('')
+    try {
+      const notes = notesImportables.map((row) => ({
+        evaluation_id: ouverte.id,
+        eleve_id: row.eleve.id,
+        valeur: row.note,
+      }))
+      const { error: importError } = await supabase.from('notes')
+        .upsert(notes, { onConflict: 'evaluation_id,eleve_id' })
+      if (importError) {
+        setErreur(`Import impossible : ${importError.message}`)
+        return
+      }
+      setSaisies((courantes) => ({
+        ...courantes,
+        ...Object.fromEntries(notes.map((note) => [note.eleve_id, String(note.valeur)])),
+      }))
+      setExistantes((courantes) => ({
+        ...courantes,
+        ...Object.fromEntries(notes.map((note) => [note.eleve_id, true])),
+      }))
+      setInfo(`${notes.length} note(s) importée(s) pour « ${ouverte.titre} ». Les autres lignes non importées sont indiquées dans le récapitulatif.`)
+      setLignesImport([])
+    } catch (cause) {
+      setErreur(`Import impossible : ${cause?.message || 'erreur inattendue.'}`)
+    } finally {
+      setImportEnCours(false)
+    }
   }
 
   if (matieres.length === 0) {
@@ -172,6 +305,81 @@ export default function Notes({ classe }) {
             <div><p className="gestion-eyebrow">Évaluation individuelle</p><h3>Notes par élève</h3></div>
             <span className="gestion-total">{eleves.length} élèves</span>
           </div>
+          <details className="notes-import">
+            <summary>
+              <span><strong>Importer les notes depuis Excel</strong><small>Associer les notes existantes aux élèves par matricule</small></span>
+              <span aria-hidden="true">⌄</span>
+            </summary>
+            <div className="notes-import-content">
+              <p className="muted">
+                Utilise un fichier .xlsx avec une ligne par élève et des colonnes matricule et note.
+                Les élèves doivent déjà être inscrits dans cette classe. Garde les matricules au format texte pour préserver les zéros initiaux. Les notes importées sont enregistrées pour cette évaluation et remplacent les notes précédentes correspondantes.
+              </p>
+              <label className="import-file">
+                <span>Choisir un fichier Excel (.xlsx)</span>
+                <input type="file" accept=".xlsx" onChange={choisirFichierNotes} disabled={lectureImport || importEnCours} />
+              </label>
+              {lectureImport && <p className="muted" role="status">Lecture du fichier…</p>}
+              {lignesImport.length > 0 && (
+                <>
+                  <div className="gestion-form gestion-form-compact notes-import-mapping">
+                    <label>Colonne matricule
+                      <select className="input" value={colonneMatriculeImport}
+                        onChange={(event) => setColonneMatriculeImport(Number(event.target.value))}>
+                        {Array.from({ length: colonnesImport }, (_, index) =>
+                          <option key={index} value={index}>Colonne {index + 1}</option>)}
+                      </select>
+                    </label>
+                    <label>Colonne note
+                      <select className="input" value={colonneNoteImport}
+                        onChange={(event) => setColonneNoteImport(Number(event.target.value))}>
+                        {Array.from({ length: colonnesImport }, (_, index) =>
+                          <option key={index} value={index}>Colonne {index + 1}</option>)}
+                      </select>
+                    </label>
+                  </div>
+                  <label className="gestion-checkbox">
+                    <input type="checkbox" checked={enteteImport}
+                      onChange={(event) => setEnteteImport(event.target.checked)} />
+                    La première ligne contient les en-têtes
+                  </label>
+                  <p className="notes-import-summary" role="status">
+                    {notesImportables.length} ligne(s) prête(s) · {lignesPreparees.length - notesImportables.length} ligne(s) à vérifier
+                  </p>
+                  {lignesPreparees.some((row) => row.raison) && (
+                    <ul className="notes-import-errors">
+                      {lignesPreparees.filter((row) => row.raison).slice(0, 8).map((row) => (
+                        <li key={`${row.ligne}-${row.matricule || 'vide'}`}>
+                          Ligne {row.ligne} {row.matricule ? `(${row.matricule})` : ''} : {row.raison}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <div className="gestion-table-scroll">
+                    <table className="apercu gestion-table">
+                      <thead><tr><th scope="col">Ligne</th><th scope="col">Matricule</th><th scope="col">Élève reconnu</th><th scope="col">Note / {ouverte.note_max}</th><th scope="col">État</th></tr></thead>
+                      <tbody>
+                        {lignesPreparees.slice(0, 8).map((row) => (
+                          <tr key={`preview-${row.ligne}`}>
+                            <td>{row.ligne}</td>
+                            <td>{row.matricule || '—'}</td>
+                            <td>{row.eleve?.nom || '—'}</td>
+                            <td>{Number.isFinite(row.note) ? row.note : '—'}</td>
+                            <td>{row.raison || 'Prête'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <button type="button" className="btn btn-primary"
+                    onClick={importerNotes}
+                    disabled={importEnCours || notesImportables.length === 0}>
+                    {importEnCours ? 'Import en cours…' : `Importer ${notesImportables.length} note(s)`}
+                  </button>
+                </>
+              )}
+            </div>
+          </details>
           <div className="gestion-table-scroll">
             <table className="apercu gestion-table notes-table">
               <thead>

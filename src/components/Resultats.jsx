@@ -6,6 +6,15 @@ import { exportToExcel, exportToPDF, printTable } from '../utils/export.js'
 
 const fmt = (v) => (v === null || v === undefined ? '-' : Number(v).toFixed(2))
 
+function lirePreferenceColonnes(cle) {
+  try {
+    const value = JSON.parse(localStorage.getItem(cle) || 'null')
+    return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : null
+  } catch {
+    return null
+  }
+}
+
 export default function Resultats({ classe, enseignantNom, roleAcces = 'enseignant' }) {
   const estResponsable = roleAcces === 'responsable'
   const [matieres, setMatieres] = useState([])
@@ -21,6 +30,8 @@ export default function Resultats({ classe, enseignantNom, roleAcces = 'enseigna
   const [debutPeriode, setDebutPeriode] = useState('')
   const [finPeriode, setFinPeriode] = useState('')
   const [enregistrementPeriode, setEnregistrementPeriode] = useState(false)
+  const cleChampsExport = `sygesc-colonnes-export-${classe.id}-${roleAcces}`
+  const [champsExport, setChampsExport] = useState(() => lirePreferenceColonnes(cleChampsExport))
 
   useEffect(() => {
     let actif = true
@@ -202,6 +213,57 @@ export default function Resultats({ classe, enseignantNom, roleAcces = 'enseigna
     return cols
   }
 
+  const colonnesDisponibles = columns()
+  const colonnesAExporter = champsExport === null
+    ? colonnesDisponibles
+    : colonnesDisponibles.filter((column) => champsExport.includes(column.label))
+
+  function basculerChampExport(label, checked) {
+    const courantes = champsExport ?? colonnesDisponibles.map((column) => column.label)
+    const suivantes = checked
+      ? [...new Set([...courantes, label])]
+      : courantes.filter((item) => item !== label)
+    const selection = suivantes.length === colonnesDisponibles.length ? null : suivantes
+    setChampsExport(selection)
+    try {
+      if (selection === null) localStorage.removeItem(cleChampsExport)
+      else localStorage.setItem(cleChampsExport, JSON.stringify(selection))
+    } catch {
+      setErreur('La sélection des colonnes ne peut pas être mémorisée sur cet appareil.')
+    }
+  }
+
+  function toutSelectionnerExport() {
+    setChampsExport(null)
+    try {
+      localStorage.removeItem(cleChampsExport)
+    } catch {
+      setErreur('La préférence export ne peut pas être réinitialisée sur cet appareil.')
+    }
+  }
+
+  function creerTableExport() {
+    const table = document.createElement('table')
+    table.className = 'apercu gestion-table resultats-table'
+    const thead = table.createTHead()
+    const header = thead.insertRow()
+    colonnesAExporter.forEach((column) => {
+      const cell = document.createElement('th')
+      cell.scope = 'col'
+      cell.textContent = column.label
+      header.append(cell)
+    })
+    const tbody = table.createTBody()
+    lignes.forEach((ligne) => {
+      const row = tbody.insertRow()
+      colonnesAExporter.forEach((column) => {
+        const cell = row.insertCell()
+        cell.textContent = String(column.getValue(ligne) ?? '')
+      })
+    })
+    return table
+  }
+
   const enteteDocument = {
     etablissement: classe.etab?.nom,
     adresse: [classe.etab?.adresse, classe.campusNom, classe.campusVille].filter(Boolean).join(' · '),
@@ -225,13 +287,12 @@ export default function Resultats({ classe, enseignantNom, roleAcces = 'enseigna
     }
   }
   const handleExcel = () => executerExport(() =>
-    exportToExcel(lignes, columns(), 'resultats.xlsx', { ...enteteDocument, titre: titreDocument }))
+    exportToExcel(lignes, colonnesAExporter, 'resultats.xlsx', { ...enteteDocument, titre: titreDocument }))
   const handlePDF = () => executerExport(() =>
-    exportToPDF(titreDocument, columns(), lignes, 'resultats.pdf', enteteDocument))
+    exportToPDF(titreDocument, colonnesAExporter, lignes, 'resultats.pdf', enteteDocument))
   const handlePrint = () => executerExport(async () => {
-    const table = document.querySelector('.resultats-table')
-    if (!table) throw new Error('Le tableau des résultats est introuvable.')
-    await printTable(table, titreDocument, enteteDocument)
+    if (colonnesAExporter.length === 0) throw new Error('Sélectionne au moins une colonne à imprimer.')
+    await printTable(creerTableExport(), titreDocument, enteteDocument)
   })
   const classes = estResponsable ? lignes.filter((ligne) => ligne.general !== null) : []
   const moyenneClasse = classes.length
@@ -316,11 +377,32 @@ export default function Resultats({ classe, enseignantNom, roleAcces = 'enseigna
               </p>
             </div>
             <div className="gestion-actions">
-              <button type="button" className="btn" onClick={handlePrint}>Imprimer</button>
-              <button type="button" className="btn" onClick={handleExcel}>Excel</button>
-              <button type="button" className="btn btn-primary" onClick={handlePDF}>Exporter PDF</button>
+              <button type="button" className="btn" onClick={handlePrint} disabled={colonnesAExporter.length === 0}>Imprimer</button>
+              <button type="button" className="btn" onClick={handleExcel} disabled={colonnesAExporter.length === 0}>Excel</button>
+              <button type="button" className="btn btn-primary" onClick={handlePDF} disabled={colonnesAExporter.length === 0}>Exporter PDF</button>
             </div>
           </header>
+          <details className="export-fields">
+            <summary>
+              <span><strong>Personnaliser les colonnes exportées</strong>
+                <small>{colonnesAExporter.length} colonne(s) sélectionnée(s) · PDF, Excel et impression</small></span>
+              <span aria-hidden="true">⌄</span>
+            </summary>
+            <div className="export-fields-content">
+              <div className="export-fields-list">
+                {colonnesDisponibles.map((column) => (
+                  <label key={column.label}>
+                    <input type="checkbox"
+                      checked={colonnesAExporter.some((item) => item.label === column.label)}
+                      onChange={(event) => basculerChampExport(column.label, event.target.checked)} />
+                    <span>{column.label}</span>
+                  </label>
+                ))}
+              </div>
+              <button type="button" className="btn btn-small"
+                onClick={toutSelectionnerExport}>Tout sélectionner</button>
+            </div>
+          </details>
           {estResponsable && <div className="gestion-metrics">
             <article className="gestion-metric"><span>Élèves inscrits</span><strong>{lignes.length}</strong></article>
             <article className="gestion-metric"><span>Moyenne de classe</span><strong>{moyenneClasse === null ? '—' : `${fmt(moyenneClasse)} / 20`}</strong></article>

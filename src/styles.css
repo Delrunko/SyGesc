@@ -485,6 +485,22 @@ button.badge { border: none; cursor: pointer; font: inherit; font-weight: 600; f
 .resultats-table thead th small { display: block; margin-top: 0.15rem; font-size: 0.67rem; font-weight: 500; text-transform: none; }
 .resultat-rang { display: inline-grid; min-width: 1.8rem; height: 1.8rem; place-items: center; border-radius: 50%; background: color-mix(in srgb, var(--star) 22%, var(--surface)); color: var(--text); font-weight: 750; }
 .resultat-moyenne { color: var(--accent); font-variant-numeric: tabular-nums; }
+.notes-import { margin: 0 0 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface-2); }
+.notes-import > summary, .export-fields > summary { display: flex; align-items: center; justify-content: space-between; gap: 1rem; padding: 0.8rem 0.9rem; color: var(--text); cursor: pointer; list-style: none; }
+.notes-import > summary::-webkit-details-marker, .export-fields > summary::-webkit-details-marker { display: none; }
+.notes-import > summary > span:first-child, .export-fields > summary > span:first-child { display: grid; gap: 0.1rem; }
+.notes-import > summary strong, .export-fields > summary strong { font-size: 0.88rem; }
+.notes-import > summary small, .export-fields > summary small { color: var(--text-muted); font-size: 0.76rem; }
+.notes-import-content { display: grid; gap: 0.75rem; padding: 0 0.9rem 0.9rem; }
+.notes-import-content > .muted { margin: 0; font-size: 0.84rem; }
+.notes-import-mapping { margin: 0; }
+.notes-import-summary { margin: 0; color: var(--accent); font-size: 0.88rem; font-weight: 700; }
+.notes-import-errors { display: grid; gap: 0.2rem; margin: 0; padding: 0.7rem 0.8rem 0.7rem 2rem; border: 1px solid color-mix(in srgb, var(--danger) 35%, var(--border)); border-radius: var(--radius); background: color-mix(in srgb, var(--danger) 7%, var(--surface)); color: var(--danger); font-size: 0.82rem; }
+.export-fields { margin: 0 0 1rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.export-fields-content { display: flex; align-items: flex-end; justify-content: space-between; gap: 1rem; padding: 0 0.9rem 0.9rem; }
+.export-fields-list { display: flex; flex-wrap: wrap; gap: 0.4rem 0.85rem; }
+.export-fields-list label { display: inline-flex; align-items: center; gap: 0.35rem; padding: 0.35rem 0.55rem; border: 1px solid var(--border); border-radius: 999px; background: var(--surface-2); color: var(--text); font-size: 0.8rem; cursor: pointer; }
+.export-fields-list input { accent-color: var(--accent); }
 
 /* ===== Administration ===== */
 .admin-container { max-width: 1180px; }
@@ -767,6 +783,9 @@ button.badge { border: none; cursor: pointer; font: inherit; font-weight: 600; f
   .admin-stat-card strong { font-size: 1.65rem; }
   .admin-stat-card .muted { font-size: 0.76rem; }
   .admin-shortcuts { grid-template-columns: 1fr; }
+  .notes-import-content { padding-right: 0.75rem; padding-left: 0.75rem; }
+  .export-fields-content { align-items: stretch; flex-direction: column; }
+  .export-fields-content > .btn { align-self: flex-start; }
   .teacher-average-chart { padding: 1rem; }
   .teacher-average-chart .chart-wrap { height: 230px; }
   .admin-filtres { flex-direction: column; }
@@ -865,4 +884,104 @@ button.badge { border: none; cursor: pointer; font: inherit; font-weight: 600; f
   .bulletin { border: none !important; }
   .bulletin .apercu td { border: 1px solid #000 !important; }
   .document-entete { break-inside: avoid; }
+}
+
+/* ===== Responsive mobile : correctifs (à garder en dernier dans le fichier) ===== */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { overflow-x: clip; }
+img, video { max-width: 100%; }
+button, a, input, select, label, summary { touch-action: manipulation; }
+.accueil-page > *, .etablissement-page > *, .gestion-page > * { min-width: 0; }
+.tabs, .admin-nav, .gestion-table-scroll, .admin-table-scroll,
+.presences-table-scroll, .assistant-suggestions { overscroll-behavior-x: contain; }
+.tabs, .admin-nav { scrollbar-width: none; }
+.tabs::-webkit-scrollbar, .admin-nav::-webkit-scrollbar { display: none; }
+.sidebar { overscroll-behavior: contain; }
+.auth { min-height: 100dvh; }
+
+/* ----- Tablette et téléphone : menu tiroir, champs ----- */
+@media (max-width: 900px) {
+  .sidebar {
+    width: min(var(--sb-largeur), 86vw);
+    padding-top: env(safe-area-inset-top);
+    visibility: hidden;
+    transition: transform 0.2s ease, visibility 0s linear 0.2s;
+  }
+  .sidebar.ouvert { visibility: visible; transition: transform 0.2s ease; }
+  .sb-pied { padding-bottom: calc(1.25rem + env(safe-area-inset-bottom)); }
+
+  /* Page figée derrière le menu, et rien ne flotte par-dessus */
+  body:has(.sidebar.ouvert) { overflow: hidden; }
+  body:has(.sidebar.ouvert) .assistant-flottant,
+  body:has(.sidebar.ouvert) .notification-center-dashboard { display: none; }
+
+  /* iOS zoome sur les champs sous 16 px */
+  input, select, textarea, .input, .admin-role-select .input { font-size: 16px; }
+}
+
+/* ----- Écrans tactiles : cibles d'au moins 44 px ----- */
+@media (pointer: coarse) {
+  .btn, .input, select.input, .tab, .admin-nav-item,
+  .presence-choix, button.badge, .sb-lien, .sb-classe { min-height: 44px; }
+  .btn-small, .admin-actions .btn, .message-actions .btn,
+  .assistant-historique-ligne .btn, .assistant-suggestion { min-height: 40px; }
+  .sb-plie { width: 44px; min-height: 44px; }
+  .link-btn, .fil button { padding: 0.45rem 0.1rem; }
+  input[type="checkbox"], input[type="radio"] { width: 1.15rem; height: 1.15rem; }
+}
+@media (hover: none) {
+  .admin-shortcut:hover, .theme-toggle:hover { transform: none; }
+}
+
+/* ----- Téléphone ----- */
+@media (max-width: 560px) {
+  /* Présences : une carte par élève, boutons larges */
+  .presences-table-scroll { overflow-x: visible; }
+  .tableau-presences, .tableau-presences tbody, .tableau-presences tr,
+  .tableau-presences th, .tableau-presences td { display: block; }
+  .tableau-presences thead { display: none; }
+  .tableau-presences tr.presence-ligne {
+    margin-bottom: 0.65rem; overflow: hidden;
+    border: 1px solid var(--border); border-radius: var(--radius);
+  }
+  .tableau-presences th, .tableau-presences td { border: 0; padding: 0.6rem 0.85rem; }
+  .tableau-presences tbody th { min-width: 0; border-left: 4px solid var(--border); }
+  .presence-commandes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.4rem; width: 100%; }
+  .presence-commandes .presence-choix { justify-content: center; padding-inline: 0.3rem; text-align: center; }
+
+  .gestion-table { min-width: 480px; }
+
+  /* Fenêtre de compte en feuille du bas */
+  .admin-modal-overlay { align-items: end; padding: 0; }
+  .admin-account-modal {
+    width: 100%; max-height: 92dvh;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: calc(1.1rem + env(safe-area-inset-bottom));
+  }
+
+  /* Assistant : feuille du bas pleine largeur */
+  .assistant-flottant:has(.assistant-panneau) { left: 0; right: 0; bottom: 0; }
+  .assistant-flottant:has(.assistant-panneau) .assistant-bouton { display: none; }
+  .assistant-panneau {
+    width: 100%; max-height: 88dvh; margin: 0;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    padding-bottom: calc(1rem + env(safe-area-inset-bottom));
+  }
+  .assistant-panneau .chat { max-height: 38dvh; }
+}
+
+/* ----- Téléphone en paysage ----- */
+@media (max-height: 500px) and (orientation: landscape) {
+  .assistant-panneau { max-height: 80dvh; }
+  .assistant-panneau .chat { max-height: 30dvh; min-height: 80px; }
+  .auth-visuel { min-height: 0; }
+  .contenu { padding-bottom: 5rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar, .sidebar.ouvert { transition: none; }
+}
+
+@media print {
+  .assistant-flottant, .notification-center, .pwa-notice { display: none !important; }
 }

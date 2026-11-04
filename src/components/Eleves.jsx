@@ -126,11 +126,12 @@ export default function Eleves({ classe }) {
     ])
     if (resultatEleves.error || resultatClasse.error) {
       setErreur((resultatEleves.error || resultatClasse.error).message)
-      return
+      return false
     }
     setEleves(resultatEleves.data)
     setChamps(normaliserChamps(resultatClasse.data.colonnes))
     setErreur('')
+    return true
   }
 
   useEffect(() => { charger() }, [classe.id])
@@ -335,13 +336,33 @@ export default function Eleves({ classe }) {
       setErreur('Certaines lignes contiennent des données incomplètes ou incompatibles avec les champs choisis. Corrige le fichier ou le mappage avant l’import.')
       return
     }
-    const { error } = await supabase.from('eleves')
+    const matricules = new Set()
+    const doublons = []
+    valides.forEach((eleve) => {
+      const cle = eleve.matricule.trim().toLocaleUpperCase('fr')
+      if (matricules.has(cle)) doublons.push(eleve.matricule)
+      matricules.add(cle)
+    })
+    if (doublons.length > 0) {
+      setErreur(`Import annulé : matricule(s) répété(s) dans le fichier : ${[...new Set(doublons)].slice(0, 8).join(', ')}.`)
+      return
+    }
+    const { data, error } = await supabase.from('eleves')
       .upsert(valides, { onConflict: 'classe_id,matricule', ignoreDuplicates: true })
+      .select('id')
     if (error) { setErreur(error.message); return }
-    setErreur('')
-    setInfo(`${valides.length} ligne(s) traitée(s). Les matricules déjà présents ne sont pas modifiés.`)
     setLignes([])
-    await charger()
+    setErreur('')
+    const listeActualisee = await charger()
+    if (!listeActualisee) {
+      setInfo('Import enregistré, mais la liste n’a pas pu être rechargée. Actualise la page pour voir les élèves.')
+      return
+    }
+    const ajoutes = data?.length ?? 0
+    const dejaPresents = valides.length - ajoutes
+    setInfo(ajoutes > 0
+      ? `${ajoutes} élève(s) ajouté(s) à la liste.${dejaPresents ? ` ${dejaPresents} matricule(s) existaient déjà et n’ont pas été modifiés.` : ''}`
+      : `Aucun nouvel élève ajouté : les ${valides.length} matricule(s) du fichier existent déjà dans cette classe.`)
   }
 
   async function supprimer(id) {
