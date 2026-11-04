@@ -9,6 +9,54 @@ import {
   VERSION_DOCUMENTS,
 } from './Legal.jsx'
 
+function messageConnexion(error) {
+  const texte = error?.message || ''
+  const code = error?.code
+  if (code === 'invalid_credentials' || /invalid login credentials/i.test(texte)) {
+    return 'Email ou mot de passe incorrect.'
+  }
+  if (code === 'email_not_confirmed' || /email not confirmed/i.test(texte)) {
+    return 'Ton adresse e-mail n’est pas encore confirmée. Ouvre l’e-mail reçu et clique sur le lien de confirmation.'
+  }
+  if (code === 'over_request_rate_limit' || error?.status === 429) {
+    return 'Trop de tentatives. Patiente quelques minutes, puis réessaie.'
+  }
+  if (code === 'user_banned') {
+    return 'Ce compte est suspendu. Contacte l’administrateur.'
+  }
+  if (/invalid api key/i.test(texte) || error?.status === 401) {
+    return 'Le site n’est pas configuré correctement (clé d’accès). Contacte l’administrateur.'
+  }
+  if (error?.name === 'AuthRetryableFetchError' || error?.status === 0 || /failed to fetch|network/i.test(texte)) {
+    return 'Impossible de joindre le serveur. Vérifie ta connexion internet, puis réessaie.'
+  }
+  return 'Connexion impossible pour le moment. Réessaie, ou contacte l’administrateur.'
+}
+
+function messageInscription(error) {
+  const texte = error?.message || ''
+  const code = error?.code
+  if (code === 'user_already_exists' || /already registered/i.test(texte)) {
+    return 'Un compte existe déjà avec cet e-mail. Connecte-toi ou demande un mot de passe provisoire.'
+  }
+  if (code === 'weak_password') {
+    return 'Mot de passe trop faible. Utilise au moins 10 caractères, avec des lettres et des chiffres.'
+  }
+  if (code === 'over_email_send_rate_limit' || code === 'over_request_rate_limit' || error?.status === 429) {
+    return 'Trop de demandes. Patiente quelques minutes, puis réessaie.'
+  }
+  if (code === 'signup_disabled') {
+    return 'Les inscriptions sont fermées pour le moment.'
+  }
+  if (/invalid.*email|email address.*invalid/i.test(texte)) {
+    return 'Cette adresse e-mail n’est pas valide.'
+  }
+  if (error?.name === 'AuthRetryableFetchError' || error?.status === 0 || /failed to fetch|network/i.test(texte)) {
+    return 'Impossible de joindre le serveur. Vérifie ta connexion internet, puis réessaie.'
+  }
+  return 'Inscription impossible pour le moment. Réessaie, ou contacte l’administrateur.'
+}
+
 export default function Auth({
   recoveryMode = false,
   recoveryError = '',
@@ -104,7 +152,7 @@ export default function Auth({
     try {
       if (mode === 'connexion') {
         const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) setMessage('Email ou mot de passe incorrect.')
+        if (error) setMessage(messageConnexion(error))
       } else {
         const dateAcceptation = new Date().toISOString()
         const { error } = await supabase.auth.signUp({
@@ -120,7 +168,7 @@ export default function Auth({
             },
           },
         })
-        if (error) setMessage(error.message)
+        if (error) setMessage(messageInscription(error))
         else {
           setMessage('Compte créé. Confirme ton email si demandé, puis attends la validation par l’administrateur.')
           setMessageIsInfo(true)
