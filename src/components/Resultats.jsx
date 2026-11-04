@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../supabaseClient.js'
 import Bulletin from './Bulletin.jsx'
-import DashboardCharts from './DashboardCharts.jsx'
+import DashboardCharts, { RepartitionMoyennesEnseignant } from './DashboardCharts.jsx'
 import { exportToExcel, exportToPDF, printTable } from '../utils/export.js'
 
 const fmt = (v) => (v === null || v === undefined ? '-' : Number(v).toFixed(2))
@@ -329,6 +329,7 @@ export default function Resultats({ classe, enseignantNom, roleAcces = 'enseigna
           </div>}
 
           {estResponsable && <DashboardCharts matieres={matieres} lignes={lignes} presences={presences} />}
+          {!estResponsable && <RepartitionMoyennesEnseignant lignes={lignes} />}
 
           <section className="card gestion-card">
             <div className="gestion-card-heading">

@@ -767,6 +767,8 @@ button.badge { border: none; cursor: pointer; font: inherit; font-weight: 600; f
   .admin-stat-card strong { font-size: 1.65rem; }
   .admin-stat-card .muted { font-size: 0.76rem; }
   .admin-shortcuts { grid-template-columns: 1fr; }
+  .teacher-average-chart { padding: 1rem; }
+  .teacher-average-chart .chart-wrap { height: 230px; }
   .admin-filtres { flex-direction: column; }
   .admin-filtres select { min-width: 0; }
   .admin-card { padding: 1rem; }
@@ -793,6 +795,9 @@ button.badge { border: none; cursor: pointer; font: inherit; font-weight: 600; f
 }
 .chart-card h3 { margin: 0 0 1rem; font-size: 1.05rem; }
 .chart-wrap { position: relative; height: 280px; }
+.teacher-average-chart { margin-bottom: 1rem; }
+.teacher-average-chart .gestion-table-footnote { margin: 0 0 0.75rem; }
+.teacher-average-chart .chart-wrap { height: 260px; }
 
 /* ===== Assistant flottant ===== */
 .assistant-flottant { position: fixed; right: 1.25rem; bottom: 1.25rem; z-index: 60; }

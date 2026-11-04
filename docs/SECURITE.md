@@ -15,6 +15,8 @@ Une faille à un niveau ne doit jamais suffire.
 - Les fonctions de calcul complet vérifient le rôle côté base; l'enseignant standard ne reçoit que la liste
   par élève et par évaluation. La lecture des périodes est permise aux comptes validés, leur modification
   est réservée au responsable pédagogique.
+- La vue enseignant peut agréger ces notes en effectifs par tranche de moyenne, sans afficher de moyenne
+  nominative, classement ou bulletin.
 - Le profil est créé par un déclencheur côté base avec statut `en_attente` imposé :
   impossible de s'inscrire déjà « validé ».
 - L'admin voit la liste des comptes, **pas** les élèves, notes ou présences.

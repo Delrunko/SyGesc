@@ -115,7 +115,7 @@ export default function Presences({ classe }) {
               <option key={n} value={n}>Créneau {n}</option>
             ))}
           </select>
-          <button type="button" className="btn btn-primary" onClick={ouvrir} disabled={!date}>
+          <button type="button" className="btn btn-primary" onClick={() => ouvrir()} disabled={!date}>
             Ouvrir la séance
           </button>
         </div>

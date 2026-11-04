@@ -36,6 +36,7 @@ Stack : React (Vite) + Supabase (PostgreSQL, authentification, stockage). Aucun 
 - Les bulletins individuels indiquent la période et résument les absences correspondantes. L’option « Année entière » conserve le calcul habituel.
 - L’onglet Présences comprend un calendrier mensuel; sélectionne un jour pour consulter les séances et élèves absents/excusés, puis ouvre la séance pour corriger les états.
 - Le rôle « Enseignant » (par défaut) affiche et permet d’imprimer/exporter la liste détaillée des notes par élève et évaluation; les moyennes générales, classements et bulletins sont réservés au rôle « Secrétaire / Responsable pédagogique ».
+- L’enseignant voit également un graphique agrégé de répartition des moyennes indicatives par tranche, calculées à partir des notes saisies et normalisées sur 20. Aucune moyenne individuelle ni aucun classement n’est affiché dans cette vue.
 - L’admin attribue ou retire ce rôle depuis la liste des comptes enseignants. La migration `09_roles_rapports.sql` protège aussi les changements de rôle, la gestion des périodes et les fonctions de calcul des bulletins côté Supabase.
 - Le centre de notifications signale en direct les nouvelles inscriptions aux administrateurs et confirme à l’enseignant la validation de son compte. Les alertes restent consultables après reconnexion; exécuter `10_notifications.sql` pour activer cette fonctionnalité.
 
